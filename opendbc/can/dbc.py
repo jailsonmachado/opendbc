@@ -17,6 +17,8 @@ from opendbc.car.volkswagen.mqbcan import volkswagen_mqb_meb_checksum, xor_check
 from opendbc.car.tesla.teslacan import tesla_checksum
 from opendbc.car.body.bodycan import body_checksum
 from opendbc.car.psa.psacan import psa_checksum
+# Importação Renault adicionada
+from opendbc.car.renault.renaultcan import renault_checksum
 
 
 class SignalType:
@@ -34,6 +36,7 @@ class SignalType:
   TESLA_CHECKSUM = 11
   PSA_CHECKSUM = 12
   VOLKSWAGEN_MLB_CHECKSUM = 13
+  RENAULT_CHECKSUM = 14  # Tipo Renault adicionado
 
 
 @dataclass
@@ -199,6 +202,8 @@ def get_checksum_state(dbc_name: str) -> ChecksumState | None:
     return ChecksumState(8, -1, 0, -1, True, SignalType.TESLA_CHECKSUM, tesla_checksum, tesla_setup_signal)
   elif dbc_name.startswith("psa_"):
     return ChecksumState(4, 4, 7, 3, False, SignalType.PSA_CHECKSUM, psa_checksum)
+  elif dbc_name.startswith(("renault_", "megane_")):
+    return ChecksumState(8, 4, 7, 3, False, SignalType.RENAULT_CHECKSUM, renault_checksum)
   return None
 
 
