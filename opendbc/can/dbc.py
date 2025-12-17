@@ -1,7 +1,8 @@
 import re
 import os
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
+from functools import cache
 
 from opendbc import DBC_PATH
 
@@ -16,6 +17,7 @@ from opendbc.car.volkswagen.mqbcan import volkswagen_mqb_meb_checksum, xor_check
 from opendbc.car.tesla.teslacan import tesla_checksum
 from opendbc.car.body.bodycan import body_checksum
 from opendbc.car.psa.psacan import psa_checksum
+from opendbc.car.renault.renaultcan import renault_checksum
 
 
 class SignalType:
@@ -33,6 +35,7 @@ class SignalType:
   TESLA_CHECKSUM = 11
   PSA_CHECKSUM = 12
   VOLKSWAGEN_MLB_CHECKSUM = 13
+  RENAULT_CHECKSUM = 14
 
 
 @dataclass
@@ -73,14 +76,8 @@ VAL_RE = re.compile(r"^VAL_ (\w+) (\w+) (.*);")
 VAL_SPLIT_RE = re.compile(r'["]+')
 
 
-@dataclass
+@cache
 class DBC:
-  name: str
-  msgs: dict[int, Msg]
-  addr_to_msg: dict[int, Msg]
-  name_to_msg: dict[str, Msg]
-  vals: list[Val]
-
   def __init__(self, name: str):
     dbc_path = name
     if not os.path.exists(dbc_path):
@@ -204,6 +201,8 @@ def get_checksum_state(dbc_name: str) -> ChecksumState | None:
     return ChecksumState(8, -1, 0, -1, True, SignalType.TESLA_CHECKSUM, tesla_checksum, tesla_setup_signal)
   elif dbc_name.startswith("psa_"):
     return ChecksumState(4, 4, 7, 3, False, SignalType.PSA_CHECKSUM, psa_checksum)
+  elif dbc_name.startswith(("renault_", "megane_")):
+    return ChecksumState(8, 4, 7, 3, False, SignalType.RENAULT_CHECKSUM, renault_checksum)
   return None
 
 
