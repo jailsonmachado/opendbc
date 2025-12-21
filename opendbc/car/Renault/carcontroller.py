@@ -1,54 +1,47 @@
-# carcontroller.py - Esboço inicial para Renault Megane E-Tech (Plataforma CMF-EV)
-
 from opendbc.can.packer import CANPacker
+from opendbc.car import Bus, structs
+from opendbc.car.interfaces import CarControllerBase
+# Importamos a função que você criou para não repetir código
+from opendbc.can.renaultcan import renault_checksum 
 
-# Polinômio comum da Renault para CRC8: 0x1D (ou 0x2F em alguns modelos novos)
-# Vamos usar o padrão da Aliança Nissan-Renault
-def renault_crc8(data):
-    crc = 0xFF  # Valor inicial (Seed)
-    poly = 0x1D # Polinômio SAE J1850
-    for byte in data:
-        crc ^= byte
-        for _ in range(8):
-            if crc & 0x80:
-                crc = ((crc << 1) ^ poly) & 0xFF
-            else:
-                crc <<= 1
-    return crc ^ 0xFF # Final XOR (pode variar entre 0x00 ou 0xFF)
+class CarController(CarControllerBase):
+  def __init__(self, dbc_names, CP):
+    super().__init__(dbc_names, CP)
+    self.packer = CANPacker(dbc_names[Bus.main])
+    self.frame = 0
 
-class CarController:
-    def __init__(self, dbc_name, CP, VM):
-        self.packer = CANPacker(dbc_name)
-        self.steer_counter = 0
+  def update(self, CC, CS, now_nanos):
+    actuators = CC.actuators
+    can_sends = []
 
-    def update(self, enabled, CS, frame, actuators, left_lane, right_lane, visual_alert):
-        can_sends = []
+    # 1. Lógica de Torque (Aproveitada do início)
+    # actuators.steer varia de -1 a 1. Multiplicamos pelo torque máximo.
+    apply_torque = 0
+    if CC.enabled:
+      apply_torque = int(round(actuators.steer * 300)) # 300 é um valor inicial seguro
 
-        # 1. Preparar a mensagem de direção (baseada no ID 0x1ab que vimos no log)
-        # Nota: No seu log a mensagem tem 48 bytes. 
-        # Para o Checksum, a Renault geralmente calcula sobre os dados e o contador.
-        
-        if frame % 1 == 0: # Enviar a 100Hz
-            # Exemplo de lógica de torque (actuators.steer é entre -1 e 1)
-            apply_steer = int(round(actuators.steer * 1000)) # Valor hipotético de ganho
+    # 2. Preparar valores para o Packer (Baseado no seu DBC)
+    # O Contador gira de 0 a 15 (self.frame % 16)
+    counter = self.frame % 16
+    
+    values = {
+      "STEER_TORQUE": apply_torque,
+      "COUNTER": counter,
+    }
 
-            # Construção manual do payload para cálculo de Checksum
-            # Precisamos converter o torque em bytes (Big Endian geralmente)
-            dat = bytearray([0] * 48)
-            
-            # Exemplo: Byte 5 é o contador (0-15)
-            self.steer_counter = (self.steer_counter + 1) % 16
-            dat[5] = self.steer_counter | 0x60 # 0x60 é um valor fixo comum que vimos no log
-            
-            # Inserir o torque nos bytes 6 e 7 (exemplo baseado no log)
-            dat[6] = (apply_steer >> 8) & 0xFF
-            dat[7] = apply_steer & 0xFF
-            
-            # O Byte 4 é o Checksum. Ele é calculado sobre os bytes seguintes (5 até 47)
-            # ou sobre uma parte específica do payload.
-            dat[4] = renault_crc8(dat[5:12]) # Testamos inicialmente com os primeiros bytes significativos
+    # 3. Gerar Checksum (Aproveitado do início)
+    # Primeiro geramos a mensagem "vazia" de checksum para pegar os bytes
+    _, _, dat, _ = self.packer.make_can_msg("ADAS_STATUS", 0, values)
+    
+    # Calculamos o Checksum sobre os bytes (como você fez no dat[5:12])
+    # A função renault_checksum já ignora o byte 4 (onde o próprio chk fica)
+    values["CHECKSUM"] = renault_checksum(0x1ab, None, dat)
 
-            # Adicionar ao envio
-            # can_sends.append([0x1ab, 0, dat, 0]) # ID, Bus, Data, Counter(opcional no packer)
+    # 4. Adicionar à lista de envio
+    can_sends.append(self.packer.make_can_msg("ADAS_STATUS", 0, values))
 
-        return can_sends
+    self.frame += 1
+    
+    # Retorno padrão exigido pela estrutura nova (structs)
+    new_actuators = actuators.as_builder()
+    return new_actuators, can_sends
