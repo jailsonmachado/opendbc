@@ -204,7 +204,7 @@ def get_checksum_state(dbc_name: str) -> ChecksumState | None:
   elif dbc_name.startswith("psa_"):
     return ChecksumState(4, 4, 7, 3, False, SignalType.PSA_CHECKSUM, psa_checksum)
     # --- ADIÇÃO RENAULT ---
-    elif dbc_name.startswith(("renault_", "megane_")):
+  elif dbc_name.startswith(("renault_", "megane_")):
     # Checksum: 8 bits, começa no bit 32 (byte 4)
     # Counter: 4 bits, começa no bit 40 (byte 5)
     return ChecksumState(8, 4, 32, 40, False, SignalType.RENAULT_CHECKSUM, renault_checksum)
