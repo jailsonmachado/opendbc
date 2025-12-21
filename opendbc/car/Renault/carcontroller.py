@@ -2,7 +2,7 @@ from opendbc.can.packer import CANPacker
 from opendbc.car import Bus, structs
 from opendbc.car.interfaces import CarControllerBase
 # Importamos a função que você criou para não repetir código
-from opendbc.can.renaultcan import renault_checksum 
+from opendbc.car.renault.renaultcan import renault_checksum
 
 class CarController(CarControllerBase):
   def __init__(self, dbc_names, CP):
