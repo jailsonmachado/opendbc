@@ -1,7 +1,7 @@
-# selfdrive/car/renault/fingerprints.py
+# opendbc/car/renault/fingerprints.py
 
 from common.conversions import Conversions as CV
-from selfdrive.car.renault.values import CAR
+from opendbc.car.renault.values import CAR
 
 # Estes são os IDs que o Comma 3X "vê" na rede CAN do seu Megane E-Tech.
 # Se esses IDs baterem, ele carrega o seu port automaticamente.
