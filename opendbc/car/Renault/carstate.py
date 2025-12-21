@@ -1,7 +1,7 @@
 from opendbc.can.parser import CANParser
 from common.conversions import Conversions as CV
-from selfdrive.car.interfaces import CarStateBase
-from selfdrive.car.renault.values import CAN
+from opendbc.car.interfaces import CarStateBase
+from opendbc.car.renault.values import CAN
 
 class CarState(CarStateBase):
     def __init__(self, CP):
