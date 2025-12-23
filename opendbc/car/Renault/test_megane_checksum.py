@@ -1,36 +1,34 @@
-def renault_checksum(data: bytearray) -> int:
-    # Algoritmo que definimos para o Megane (CRC8 Autosar)
-    crc = 0xFF
-    poly = 0x1D
-    for i, b in enumerate(data):
-        if i == 4: continue # O byte 4 é onde o checksum vive, então pulamos ele
-        crc ^= b
-        for _ in range(8):
-            if crc & 0x80:
-                crc = ((crc << 1) ^ poly) & 0xFF
-            else:
-                crc <<= 1
-    return crc ^ 0xFF
+import crcmod
 
-# --- TESTE COM DADOS REAIS DO SEU LOG ---
-# Peguei uma linha aproximada do seu log anterior (48 bytes)
-# O byte index 4 (o 5º byte) é o Checksum original.
-messages_to_test = [
-    # Substitua abaixo por sequências hexadecimais REAIS do seu arquivo .csv
-    # Formato: bytearray.fromhex("00 11 22 33 CHECKSUM 55 ...")
-    "023101006500000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-]
+def test_checksum():
+    print("=== TESTE DE CHECKSUM MEGANE E-TECH ===")
+    
+    # Dados reais do seu log (ID 0x1ab)
+    # Payload: 00 00 FF 06 82 B1 FE 96 ... (Checksum é 0x82)
+    raw_hex = "0000FF0682B1FE96FFFA0000B4086CB07D47D47C77CA0000AB08B9B3E800FFFE7D000000000000000000000000000000"
+    data = bytearray.fromhex(raw_hex)
+    
+    original_crc = data[4] # 0x82
+    print(f"Checksum Original no Log: 0x{original_crc:02X}")
 
-print("=== VALIDANDO CHECKSUM RENAULT MEGANE CAN-FD ===")
-for hex_str in messages_to_test:
-    msg = bytearray.fromhex(hex_str)
-    original_checksum = msg[4]
-    
-    calculated = renault_checksum(msg)
-    
-    match = "✓ PASSOU" if calculated == original_checksum else "✗ FALHOU"
-    
-    print(f"\nDados: {hex_str[:20]}...")
-    print(f"Original no Log: 0x{original_checksum:02X}")
-    print(f"Calculado pelo Script: 0x{calculated:02X}")
-    print(f"Resultado: {match}")
+    # TENTATIVA 1: Autosar Padrão (0x1D)
+    try:
+        autosar_crc = crcmod.mkCrcFun(0x11D, initCrc=0xFF, rev=False, xorOut=0xFF)
+        # Pula byte 4
+        payload = data[0:4] + data[5:]
+        calc = autosar_crc(payload)
+        print(f"Calculado (Poly 0x1D): 0x{calc:02X} -> {'SUCESSO' if calc == original_crc else 'FALHA'}")
+    except ImportError:
+        print("Erro: Instale crcmod (pip install crcmod)")
+
+    # TENTATIVA 2: Nissan Novo (0x2F)
+    try:
+        nissan_crc = crcmod.mkCrcFun(0x12F, initCrc=0xFF, rev=False, xorOut=0xFF)
+        payload = data[0:4] + data[5:]
+        calc = nissan_crc(payload)
+        print(f"Calculado (Poly 0x2F): 0x{calc:02X} -> {'SUCESSO' if calc == original_crc else 'FALHA'}")
+    except:
+        pass
+
+if __name__ == "__main__":
+    test_checksum()
